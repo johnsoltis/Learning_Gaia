@@ -5,7 +5,7 @@ Generates model posterior samples for the IMPUTATION question:
 
     for every model feature ("target"), and for every conditioning pattern
     that does NOT contain that target, draw N_DRAWS model samples for
-    N_PER_SUBSET real Gaia sources, in two flavours:
+    N_PER_SUBSET real Gaia sources, in two flavors:
 
       have    : sources where the target IS measured.  The target is
                 withheld from the model's INPUT but is present in its
@@ -22,16 +22,16 @@ Generates model posterior samples for the IMPUTATION question:
                 never saw it *for a source where that column was absent*.
                 Read the caveats in the write-up before using these.
 
-Outputs, per (target, flavour, pattern), two pickled-dict .npy files:
+Outputs, per (target, flavor, pattern), two pickled-dict .npy files:
 
-    {TAG}_pattern{digits}_pred{code}_{flavour}_samples_{stamp}.npy
+    {TAG}_pattern{digits}_pred{code}_{flavor}_samples_{stamp}.npy
         'samples'          (n, N_DRAWS, dim_phys) float32, PHYSICAL units
         'output_mask_phys' (n, dim_phys) bool
         'input_mask_phys'  (n, dim_phys) bool
         'source_id'        (n,) int64
         + metadata
 
-    {TAG}_pattern{digits}_pred{code}_{flavour}_truth_{stamp}.npy
+    {TAG}_pattern{digits}_pred{code}_{flavor}_truth_{stamp}.npy
         'truth'            (n, dim_phys) float32, PHYSICAL units,
                            NaN wherever the value is not measured
         'valid'            (n, dim_phys) bool
@@ -56,8 +56,8 @@ verbatim and 'output_mask_phys' tells you which those are.
 
 Data source.  This script streams the REAL validation split of the Gaia
 HDF5 catalog.  It does NOT use a Pure_Sample: a cached Pure_Sample is a
-~1% subsample in normalized model space, which is both too small for the
-rare flavours and the wrong space.  The catalog is read directly here
+~1% subsample, which is too small for the
+rare flavors.  The catalog is read directly here
 (rather than through HDF5IterableDataset) for one reason: that class does
 not emit source_id.  The validation-split definition is taken from
 source_id_dataset_creator_070726.partition_code, which is documented to
@@ -68,7 +68,7 @@ asserted at startup.
 Pattern-exact subsets.  Every source in a subset satisfies its pattern
 exactly: all conditioned features are measured.  There is therefore no
 mask fallback anywhere in the output.  Because that intersection can be
-small (RV is measured for ~2% of sources) each (target, flavour) keeps two
+small (RV is measured for ~2% of sources) each (target, flavor) keeps two
 reservoirs -- a general one and one restricted to RV-measured sources --
 and patterns that condition on RV draw from the latter.  Where fewer than
 N_PER_SUBSET sources are available the file is still written, with
@@ -113,13 +113,13 @@ MODEL_TAG     = os.environ.get('CFM_MODEL_TAG', 'POS_PM_setA_0710_RK50')
 
 
 
-#N_PER_SUBSET = 1000      # sources per (target, flavour, pattern)
+#N_PER_SUBSET = 1000      # sources per (target, flavor, pattern)
 #N_DRAWS = 100            # model samples per source
-POOL_SIZE = 25000        # reservoir capacity per (target, flavour, pool)
+POOL_SIZE = 25000        # reservoir capacity per (target, flavor, pool)
 RK4_STEPS = 50
 BATCH_SOURCES = 250      # sources per forward pass (x N_DRAWS rows)
 
-FLAVOURS = ('have', 'missing')
+FLAVORS = ('have', 'missing')
 
 # Conditioning patterns. The target is never in its own pattern, so each
 # pattern is used for every target it does not contain.
@@ -348,9 +348,9 @@ class Reservoir:
 # ===========================================================================
 def stream_pools(hdf5_filelist, feature_names, set_type, targets, rng, split=SPLIT):
     """
-    Build, per (target, flavour), two reservoirs:
-        'gen' : any source of that flavour
-        'rv'  : that flavour AND radial_velocity measured
+    Build, per (target, flavor), two reservoirs:
+        'gen' : any source of that flavor
+        'rv'  : that flavor AND radial_velocity measured
     The 'rv' pool exists because RV is measured for ~2% of sources, so a
     general pool cannot supply N_PER_SUBSET sources for a pattern that
     conditions on RV. It is not built for target='radial_velocity', where
@@ -386,7 +386,7 @@ def stream_pools(hdf5_filelist, feature_names, set_type, targets, rng, split=SPL
 
     pools = {}
     for t in targets:
-        for fl in FLAVOURS:
+        for fl in FLAVORS:
             pools[(t, fl, 'gen')] = Reservoir(POOL_SIZE, len(feature_names),
                                               len(astro_cols), rng)
             if j_rv is not None and t != 'radial_velocity':
@@ -443,7 +443,7 @@ def stream_pools(hdf5_filelist, feature_names, set_type, targets, rng, split=SPL
         for t in targets:
             jt = idx_of[t]
             have = valid[:, jt]
-            for fl in FLAVOURS:
+            for fl in FLAVORS:
                 base = have if fl == 'have' else ~have
                 if not base.any():
                     continue
@@ -485,7 +485,7 @@ def stream_pools(hdf5_filelist, feature_names, set_type, targets, rng, split=SPL
 
 
 # ===========================================================================
-# Sampling for one (target, flavour, pattern)
+# Sampling for one (target, flavor, pattern)
 # ===========================================================================
 def sample_one(ns, feat, valid, cond, target, rng):
     """
@@ -601,7 +601,7 @@ def main():
     pools, scanned = stream_pools(np.atleast_1d(ns['hdf5_filelist']),
                                   feature_names, set_type, targets, rng)
     for t in targets:
-        for fl in FLAVOURS:
+        for fl in FLAVORS:
             g = pools[(t, fl, 'gen')]
             msg = f'  {t:<20} {fl:<8} pool {g["n"]:>6} / seen {g["seen"]:,}'
             if (t, fl, 'rv') in pools:
@@ -625,18 +625,18 @@ def main():
 
     for target in targets:
         jt = feature_names.index(target)
-        for flavour in FLAVOURS:
+        for flavor in FLAVORS:
             for cond in patterns:
                 if target in cond:
                     continue
                 use_rv = 'radial_velocity' in cond
-                pool = pools.get((target, flavour, 'rv' if use_rv else 'gen'))
+                pool = pools.get((target, flavor, 'rv' if use_rv else 'gen'))
                 pat = pattern_digits(cond)
                 code = FEATURE_CODE[target]
-                base = f'{MODEL_TAG}_pattern{pat}_pred{code}_{flavour}'
+                base = f'{MODEL_TAG}_pattern{pat}_pred{code}_{flavor}'
 
                 entry = {
-                    'target': target, 'target_code': code, 'flavour': flavour,
+                    'target': target, 'target_code': code, 'flavor': flavor,
                     'pattern_digits': pat, 'cond_features': list(cond),
                     'pattern_label': pattern_label(cond, feature_names),
                     'pool': 'rv' if use_rv else 'gen',
@@ -651,8 +651,8 @@ def main():
                 cidx = [feature_names.index(f) for f in cond]
                 elig = (pool['valid'][:, cidx].all(axis=1) if cidx
                         else np.ones(pool['n'], dtype=bool))
-                # Flavour is guaranteed by pool construction; re-check cheaply.
-                elig &= pool['valid'][:, jt] if flavour == 'have' else ~pool['valid'][:, jt]
+                # Flavor is guaranteed by pool construction; re-check cheaply.
+                elig &= pool['valid'][:, jt] if flavor == 'have' else ~pool['valid'][:, jt]
                 n_elig = int(elig.sum())
 
                 entry.update(n_pool=int(pool['n']), n_pool_seen=int(pool['seen']),
