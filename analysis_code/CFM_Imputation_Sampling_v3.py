@@ -1,6 +1,9 @@
 """
 CFM_Imputation_Sampling_v3.py
 =============================
+
+USED FOR SECTION 4.3 ONLY. ONLY USED RADIAL VELOCITY RESULTS. DESPITE SOME OF THE NOTATION IN CODE, NOTE THAT IT WAS RUN USING TEST SET DATA, NOT VALIDATION SET DATA.
+
 Generates model posterior samples for the IMPUTATION question:
 
     for every model feature ("target"), and for every conditioning pattern
