@@ -1,6 +1,11 @@
 """
 CFM_TARP_RMSE_Eval.py
 =====================
+
+USED FOR APPPENDIX ONLY -- NOTE THAT FOR PAPER IT WAS RUN WITH 200 MODEL DRAWS INSTEAD OF DEFAULT LISTED
+ONLY USED CLASS SPECIFIC RMSE
+
+
 Stand-alone evaluation of the Gaia conditional flow matching (CFM) model with
 two metrics, and nothing else:
 
